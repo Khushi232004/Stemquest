@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StemQuest</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="stylesheet" href="/vendor/bootstrap.min.css">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div id="nav"></div>
+<div class="container py-4" style="max-width:900px">
+  <div class="land">
+    <div class="mascot">🌙</div>
+    <h1 data-i18n="heroTitle">Learn STEM like an adventure</h1>
+    <p class="text-muted mt-3 mb-4" data-i18n="heroSub"></p>
+    <div class="d-flex gap-2 justify-content-center flex-wrap">
+      <a href="/register.html" class="btn btn-primary btn-lg" data-i18n="startNow">Start your quest</a>
+      <a href="/login.html" class="btn btn-light btn-lg" data-i18n="login">Login</a>
+    </div>
+  </div>
+  <div class="row g-3 mt-3">
+    <div class="col-6 col-md-3"><div class="card feat"><div class="fi">🎮</div><h6 data-i18n="f1t"></h6><p class="text-muted small mb-0" data-i18n="f1d"></p></div></div>
+    <div class="col-6 col-md-3"><div class="card feat"><div class="fi">📴</div><h6 data-i18n="f2t"></h6><p class="text-muted small mb-0" data-i18n="f2d"></p></div></div>
+    <div class="col-6 col-md-3"><div class="card feat"><div class="fi">🌐</div><h6 data-i18n="f3t"></h6><p class="text-muted small mb-0" data-i18n="f3d"></p></div></div>
+    <div class="col-6 col-md-3"><div class="card feat"><div class="fi">📊</div><h6 data-i18n="f4t"></h6><p class="text-muted small mb-0" data-i18n="f4d"></p></div></div>
+  </div>
+</div>
+<script src="/js/app.js"></script>
+<script>(async () => { await loadLang(); renderNav(false); })();</script>
+</body>
+</html>

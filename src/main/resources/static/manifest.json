@@ -1,0 +1,8 @@
+{
+  "name": "StemQuest",
+  "short_name": "StemQuest",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#0c1130",
+  "theme_color": "#1a1f4b"
+}

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Register - StemQuest</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="stylesheet" href="/vendor/bootstrap.min.css">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div id="nav"></div>
+<div class="container py-4" style="max-width:420px">
+  <h3 class="mb-3" data-i18n="register">Register</h3>
+  <div id="msg"></div>
+  <input id="name" class="form-control mb-2" data-i18n-ph="name" placeholder="Name">
+  <input id="pw" type="password" class="form-control mb-2" data-i18n-ph="password" placeholder="Password">
+  <select id="role" class="form-select mb-2">
+    <option value="STUDENT" data-i18n="student">Student</option>
+    <option value="TEACHER" data-i18n="teacher">Teacher</option>
+  </select>
+  <select id="grade" class="form-select mb-2">
+    <option value="6" data-i18n="grade6">Grade 6</option>
+    <option value="7" data-i18n="grade7">Grade 7</option>
+  </select>
+  <input id="jcode" class="form-control mb-2" data-i18n-ph="joinCode" placeholder="Class join code">
+  <input id="tkey" class="form-control mb-2 d-none" data-i18n-ph="teacherKey" placeholder="Teacher key">
+  <button id="go" class="btn btn-primary w-100" data-i18n="register">Register</button>
+  <p class="mt-3"><span data-i18n="haveAccount">Already have an account?</span> <a href="/login.html" data-i18n="login">Login</a></p>
+</div>
+<script src="/js/app.js"></script>
+<script>
+(async () => {
+  await loadLang(); renderNav(false);
+  const $ = id => document.getElementById(id);
+  $('role').onchange = () => {
+    const tch = $('role').value === 'TEACHER';
+    $('tkey').classList.toggle('d-none', !tch);
+    $('jcode').classList.toggle('d-none', tch);
+    $('grade').classList.toggle('d-none', tch);
+  };
+  $('go').onclick = async () => {
+    const body = { name: $('name').value, password: $('pw').value, grade: $('grade').value,
+                   role: $('role').value, teacherKey: $('tkey').value, joinCode: $('jcode').value };
+    try {
+      const r = await fetch('/api/auth/register', { method: 'POST',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const d = await r.json();
+      if (r.ok) { location.href = '/login.html?code=' + encodeURIComponent(d.studentCode); return; }
+      $('msg').className = 'alert alert-danger'; $('msg').textContent = d.message;
+    } catch (e) {
+      $('msg').className = 'alert alert-danger'; $('msg').textContent = t('offline');
+    }
+  };
+})();
+</script>
+</body>
+</html>

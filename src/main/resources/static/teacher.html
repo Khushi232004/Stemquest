@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Teacher - StemQuest</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="stylesheet" href="/vendor/bootstrap.min.css">
+<link rel="stylesheet" href="/css/style.css">
+<script src="/vendor/chart.umd.min.js"></script>
+</head>
+<body>
+<div id="nav"></div>
+<div class="container py-4" style="max-width:1000px">
+  <h3 class="mb-3" data-i18n="teacherDash">Teacher dashboard</h3>
+  <div id="msg"></div>
+  <div id="pills" class="pills"></div>
+
+  <div class="row g-3 text-center mb-3">
+    <div class="col-6 col-md-3"><div class="stat"><div id="s1" class="stat-val"></div><div class="stat-lbl" data-i18n="students">Students</div></div></div>
+    <div class="col-6 col-md-3"><div class="stat"><div id="s2" class="stat-val"></div><div class="stat-lbl" data-i18n="activeToday">Active today</div></div></div>
+    <div class="col-6 col-md-3"><div class="stat"><div id="s3" class="stat-val"></div><div class="stat-lbl" data-i18n="avgAll">Class average</div></div></div>
+    <div class="col-6 col-md-3"><div class="stat"><div id="s4" class="stat-val"></div><div class="stat-lbl" data-i18n="totalGames">Games played</div></div></div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-6"><div class="card p-3"><canvas id="chart1"></canvas></div></div>
+    <div class="col-md-6"><div class="card p-3"><canvas id="chart2"></canvas></div></div>
+  </div>
+
+  <h5 class="sec"><span data-i18n="atRisk">Needs help (below 50%)</span><a id="csv" href="/api/teacher/report.csv" data-i18n="downloadCsv">Download CSV</a></h5>
+  <div id="risk" class="lbbox mb-3"></div>
+  <a href="/students.html" class="btn btn-primary" data-i18n="navStudents">Students</a>
+</div>
+<script src="/js/app.js"></script>
+<script>
+(async () => {
+  await loadLang(); renderNav(true);
+  const $ = id => document.getElementById(id);
+  if (window.Chart) { Chart.defaults.color = '#cfd6ff'; Chart.defaults.borderColor = 'rgba(255,255,255,.1)'; }
+  let grade = '', c1 = null, c2 = null;
+  const today = todayKey();
+
+  function drawPills() {
+    $('pills').innerHTML = '';
+    [['', t('allGrades')], ['6', t('grade6')], ['7', t('grade7')]].forEach(([v, label]) => {
+      const b = mk('button', 'pill' + (v === grade ? ' on' : ''), label);
+      b.onclick = () => { grade = v; load(); };
+      $('pills').append(b);
+    });
+  }
+
+  async function load() {
+    drawPills();
+    const q = grade ? '?grade=' + grade : '';
+    const students = await getJSON('/api/teacher/students' + q, 't_students' + grade);
+    const topics = await getJSON('/api/teacher/topics' + q, 't_topics' + grade);
+    if (!students) {
+      $('msg').className = 'alert alert-warning'; $('msg').textContent = t('teacherOnly'); return;
+    }
+    $('msg').className = ''; $('msg').textContent = '';
+
+    const played = students.filter(s => s.games > 0);
+    $('s1').textContent = students.length;
+    $('s2').textContent = students.filter(s => s.last === today).length;
+    $('s3').textContent = (played.length ? Math.round(played.reduce((a, s) => a + s.avg, 0) / played.length) : 0) + '%';
+    $('s4').textContent = students.reduce((a, s) => a + s.games, 0);
+    $('csv').href = '/api/teacher/report.csv' + q;
+
+    if (window.Chart) {
+      if (c1) c1.destroy();
+      if (c2) c2.destroy();
+      c1 = new Chart($('chart1'), { type: 'bar',
+        data: { labels: (topics || []).map(x => tr('topic_' + x.topic, x.topic)),
+                datasets: [{ label: t('topicAvg'), data: (topics || []).map(x => x.avg), backgroundColor: '#8ecae6' }] },
+        options: { scales: { y: { min: 0, max: 100 } } } });
+      const top = students.slice().sort((a, b) => b.xp - a.xp).slice(0, 10);
+      c2 = new Chart($('chart2'), { type: 'bar',
+        data: { labels: top.map(x => x.name),
+                datasets: [{ label: tr('xpChart', 'XP per student'), data: top.map(x => x.xp), backgroundColor: '#f2a7b9' }] },
+        options: { scales: { y: { beginAtZero: true } } } });
+    }
+
+    $('risk').innerHTML = '';
+    const risk = students.filter(s => s.games > 0 && s.avg < 50);
+    if (!risk.length) $('risk').append(mk('div', 'lbrow text-muted', t('noRisk')));
+    risk.forEach(s => {
+      const row = mk('div', 'lbrow');
+      row.style.cursor = 'pointer';
+      row.append(mk('div', 'rk', '⚠️'), mk('div', 'nm', s.name + (s.grade ? ' · ' + t('grade' + s.grade) : '')),
+                 mk('strong', '', s.avg + '%'));
+      row.onclick = () => location.href = '/student.html?id=' + s.id;
+      $('risk').append(row);
+    });
+  }
+  load();
+})();
+</script>
+</body>
+</html>

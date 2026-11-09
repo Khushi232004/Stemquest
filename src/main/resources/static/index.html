@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StemQuest</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="stylesheet" href="/vendor/bootstrap.min.css">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div id="nav"></div>
+<div class="container py-4" style="max-width:900px">
+  <div id="main">
+    <div class="card hero mb-3">
+      <div class="mascot" id="mascot">🌙</div>
+      <div>
+        <h4 id="hello" class="mb-1"></h4>
+        <span id="rank" class="rank"></span>
+        <div><span id="bubble" class="bubble"></span></div>
+      </div>
+    </div>
+
+    <div class="row g-3 text-center mb-3">
+      <div class="col-4"><div class="stat"><div id="streak" class="stat-val"></div><div class="stat-lbl" data-i18n="streak">streak</div></div></div>
+      <div class="col-4"><div class="stat"><div id="xp" class="stat-val"></div><div class="stat-lbl">XP</div></div></div>
+      <div class="col-4"><div class="stat"><div id="lvl" class="stat-val"></div><div class="stat-lbl" data-i18n="level">Level</div></div></div>
+    </div>
+    <div class="progress mb-1"><div id="bar" class="progress-bar" style="width:0%"></div></div>
+    <div id="toNext" class="text-muted small mb-1"></div>
+    <div id="pend" class="text-muted small"></div>
+
+    <div class="row g-3 mt-1">
+      <div class="col-md-6"><div class="card p-3 h-100 flex-row align-items-center gap-3">
+        <div class="ring" id="ring"><span id="ringTxt">0/3</span></div>
+        <div><h6 class="mb-1" data-i18n="dailyGoal">Daily goal</h6><div class="text-muted small" id="goalTxt"></div></div>
+      </div></div>
+      <div class="col-md-6"><div class="card p-3 h-100">
+        <h6 data-i18n="quickPlay">Quick play</h6>
+        <div class="d-flex gap-2 flex-wrap">
+          <a id="qq" class="btn btn-primary btn-sm" data-i18n="quickQuiz">Random quiz</a>
+          <a id="qm" class="btn btn-success btn-sm" data-i18n="quickMatch">Random match</a>
+        </div>
+      </div></div>
+    </div>
+
+    <h5 class="sec"><span data-i18n="pickSubject">Choose a subject</span></h5>
+    <div id="subjects" class="row g-3"></div>
+
+    <h5 class="sec"><span data-i18n="leaderboard">Leaderboard</span><a href="/leaderboard.html" data-i18n="seeAll">See all</a></h5>
+    <div id="lb" class="lbbox"></div>
+  </div>
+</div>
+<script src="/js/app.js"></script>
+<script>
+(async () => {
+  await loadLang(); renderNav(true);
+  await syncNow();
+  const $ = id => document.getElementById(id);
+  const me = await getJSON('/api/users/me', 'me');
+  if (!me) { $('main').textContent = t('noData'); return; }
+
+  $('mascot').textContent = getAvatar();
+  $('hello').textContent = t('welcome') + ', ' + me.name + '!';
+  $('rank').textContent = (me.grade ? t('grade' + me.grade) + ' · ' : '') + t('level') + ' ' + me.level + ' · ' + rankFor(me.level);
+  $('streak').textContent = '🔥 ' + me.streak;
+  $('xp').textContent = '⚡ ' + me.xp;
+  $('lvl').textContent = '⭐ ' + me.level;
+  $('bar').style.width = (me.xp % 100) + '%';
+  $('toNext').textContent = (100 - me.xp % 100) + ' ' + t('toNext');
+  if (pendingCount()) $('pend').textContent = pendingCount() + ' ' + t('pending');
+
+  const done = Math.min(getDaily(), DAILY_GOAL), left = DAILY_GOAL - done;
+  $('ring').style.setProperty('--p', (done / DAILY_GOAL * 100) + '%');
+  $('ringTxt').textContent = done + '/' + DAILY_GOAL;
+  $('goalTxt').textContent = left === 0 ? t('mascotDone') : t('goalLeft').replace('{n}', left);
+  $('bubble').textContent = me.xp === 0 ? t('mascotNew') : left === 0 ? t('mascotDone') : t('goalLeft').replace('{n}', left);
+
+  const topics = await getJSON('/api/topics', 'topics_' + (me.grade || 6)) || [];
+  if (topics.length) {
+    const pick = () => encodeURIComponent(topics[Math.floor(Math.random() * topics.length)].topic);
+    $('qq').href = '/quiz.html?topic=' + pick();
+    $('qm').href = '/match.html?topic=' + pick();
+  }
+
+  const ICON = { Science: '🔭', Maths: '📐' };
+  [...new Set(topics.map(x => x.subject))].forEach(sub => {
+    const col = mk('div', 'col-6');
+    const a = mk('a', 'card subj-card');
+    a.href = '/learn.html?subject=' + encodeURIComponent(sub);
+    a.append(mk('div', 'subj-ico', ICON[sub] || '📘'),
+             mk('h5', 'mt-2 mb-1', tr('subject_' + sub, sub)),
+             mk('div', 'text-muted small', topics.filter(x => x.subject === sub).length + ' ' + t('topics')));
+    col.append(a); $('subjects').append(col);
+  });
+
+  const lbGrade = me.role === 'STUDENT' ? (me.grade || 6) : 'all';
+  const lb = await getJSON('/api/leaderboard' + (lbGrade === 'all' ? '' : '?grade=' + lbGrade), 'lb_students_v10_' + lbGrade) || [];
+  const medals = ['🥇', '🥈', '🥉'];
+  lb.slice(0, 3).forEach((u, i) => {
+    const row = mk('div', 'lbrow' + (u.id === me.id ? ' me' : ''));
+    row.append(mk('div', 'rk', medals[i]), mk('div', 'nm', u.name), mk('strong', '', u.xp + ' XP'));
+    $('lb').append(row);
+  });
+})();
+</script>
+</body>
+</html>

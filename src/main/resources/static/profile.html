@@ -1,0 +1,102 @@
+<html>
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Profile - StemQuest</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="stylesheet" href="/vendor/bootstrap.min.css">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div id="nav"></div>
+<div class="container py-4" style="max-width:800px">
+  <div id="main">
+    <div class="card hero mb-3">
+      <div class="mascot" id="mascot">🌙</div>
+      <div>
+        <h4 id="pname" class="mb-1"></h4>
+        <span id="prank" class="rank"></span>
+        <div class="text-muted small mt-2"><span data-i18n="loginCode">Your login code</span>: <strong id="pcode"></strong></div>
+      </div>
+    </div>
+
+    <div class="row g-3 text-center mb-3">
+      <div class="col-4"><div class="stat"><div id="streak" class="stat-val"></div><div class="stat-lbl" data-i18n="streak">streak</div></div></div>
+      <div class="col-4"><div class="stat"><div id="xp" class="stat-val"></div><div class="stat-lbl">XP</div></div></div>
+      <div class="col-4"><div class="stat"><div id="lvl" class="stat-val"></div><div class="stat-lbl" data-i18n="level">Level</div></div></div>
+    </div>
+
+    <h5 class="sec"><span data-i18n="chooseAvatar">Choose your avatar</span></h5>
+    <div id="avatars" class="avatars"></div>
+
+    <h5 class="sec"><span data-i18n="badges">Badges</span></h5>
+    <div id="badges" class="row g-2"></div>
+
+    <h5 class="sec"><span data-i18n="recent">Recent activity</span></h5>
+    <div id="hist" class="lbbox"></div>
+
+    <button id="out" class="btn btn-light mt-4 w-100" data-i18n="logout">Logout</button>
+  </div>
+</div>
+<script src="/js/app.js"></script>
+<script>
+(async () => {
+  await loadLang(); renderNav(true);
+  const $ = id => document.getElementById(id);
+  const me = await getJSON('/api/users/me', 'me');
+  if (!me) { $('main').textContent = t('noData'); return; }
+
+  const showAvatar = () => $('mascot').textContent = getAvatar();
+  showAvatar();
+  $('pname').textContent = me.name;
+  $('prank').textContent = (me.grade ? t('grade' + me.grade) + ' · ' : '') + t('level') + ' ' + me.level + ' · ' + rankFor(me.level);
+  $('pcode').textContent = me.studentCode;
+  $('streak').textContent = '🔥 ' + me.streak;
+  $('xp').textContent = '⚡ ' + me.xp;
+  $('lvl').textContent = '⭐ ' + me.level;
+  $('out').onclick = logout;
+
+  AVATARS.forEach(a => {
+    const b = mk('button', a === getAvatar() ? 'on' : '', a);
+    b.onclick = () => {
+      me.avatar = a;
+      localStorage.setItem('me', JSON.stringify(me));
+      fetch('/api/users/me/avatar', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ avatar: a }) }).catch(() => {});
+      document.querySelectorAll('#avatars button').forEach(x => x.classList.remove('on'));
+      b.classList.add('on'); showAvatar();
+    };
+    $('avatars').append(b);
+  });
+
+  if (me.role === 'TEACHER') {
+    document.querySelectorAll('.row.g-3.text-center, #badges, #hist').forEach(e => e.remove());
+    document.querySelectorAll('h5.sec').forEach(h => {
+      if (!h.querySelector('[data-i18n="chooseAvatar"]')) h.remove();
+    });
+    return;
+  }
+
+  const ALL = { FIRST_GAME: '🥇', PERFECT: '🎯', STREAK3: '🔥', STREAK7: '🌟', LEVEL3: '👑', LEVEL5: '💎' };
+  Object.keys(ALL).forEach(b => {
+    const col = mk('div', 'col-md-6');
+    const tile = mk('div', 'card btile' + (me.badges.includes(b) ? '' : ' locked'));
+    const info = mk('div');
+    info.append(mk('div', 'fw-bold', t('badge_' + b)), mk('div', 'text-muted small', t('badgeDesc_' + b)));
+    tile.append(mk('div', 'bi', ALL[b]), info);
+    col.append(tile); $('badges').append(col);
+  });
+
+  const hist = await getJSON('/api/users/me/history', 'hist') || [];
+  if (!hist.length) $('hist').append(mk('div', 'lbrow text-muted', t('noHistory')));
+  hist.slice(0, 8).forEach(h => {
+    const row = mk('div', 'lbrow');
+    row.append(mk('div', 'rk', h.game === 'MATCH' ? '🧩' : '❓'),
+               mk('div', 'nm', tr('topic_' + h.topic, h.topic)),
+               mk('span', 'text-muted small me-2', String(h.playedAt).slice(0, 10)),
+               mk('strong', '', h.score + '/' + h.total));
+    $('hist').append(row);
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Learn - StemQuest</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="stylesheet" href="/vendor/bootstrap.min.css">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div id="nav"></div>
+<div class="container py-4" style="max-width:900px">
+  <h3 class="mb-3" id="title"></h3>
+  <div id="gpills" class="pills"></div>
+  <div id="pills" class="pills"></div>
+  <div id="grid" class="row g-3"></div>
+</div>
+<script src="/js/app.js"></script>
+<script>
+(async () => {
+  await loadLang(); renderNav(true);
+  const $ = id => document.getElementById(id);
+  const me = await getJSON('/api/users/me', 'me') || {};
+  const isT = me.role === 'TEACHER';
+  const params = new URLSearchParams(location.search);
+  let grade = isT ? (Number(params.get('grade')) === 7 ? 7 : 6) : (me.grade || 6);
+  let cur = params.get('subject');
+  let topics = [];
+
+  const hist = isT ? [] : (await getJSON('/api/users/me/history', 'hist') || []);
+  const best = {};
+  hist.forEach(h => { if (h.total > 0) best[h.topic] = Math.max(best[h.topic] || 0, 100 * h.score / h.total); });
+  const ICON = { Plants: '🌱', Matter: '🧪', 'Human Body': '🫀', Motion: '🚀',
+                 Fractions: '🍕', Geometry: '📐', Algebra: '🧮', Percentages: '💯' };
+
+  async function load() {
+    topics = await getJSON('/api/topics' + (isT ? '?grade=' + grade : ''), 'topics_' + grade) || [];
+    draw();
+  }
+
+  function draw() {
+    $('title').textContent = t('navLearn') + ' · ' + t('grade' + grade);
+    const gp = $('gpills'); gp.innerHTML = '';
+    if (isT) [6, 7].forEach(n => {
+      const b = mk('button', 'pill' + (n === grade ? ' on' : ''), t('grade' + n));
+      b.onclick = () => { grade = n; load(); };
+      gp.append(b);
+    });
+    const subjects = [...new Set(topics.map(x => x.subject))];
+    if (!subjects.includes(cur)) cur = subjects[0];
+    const pills = $('pills'); pills.innerHTML = '';
+    subjects.forEach(s => {
+      const b = mk('button', 'pill' + (s === cur ? ' on' : ''), tr('subject_' + s, s));
+      b.onclick = () => { cur = s; draw(); };
+      pills.append(b);
+    });
+    const grid = $('grid'); grid.innerHTML = '';
+    if (!subjects.length) { grid.textContent = t('noData'); return; }
+    const wrap = mk('div', 'row g-3 ' + cur.toLowerCase());
+    topics.filter(x => x.subject === cur).forEach(x => {
+      const col = mk('div', 'col-6 col-md-3');
+      const card = mk('div', 'card topic-card');
+      const pc = best[x.topic];
+      const n = pc === undefined ? 0 : pc >= 100 ? 3 : pc >= 70 ? 2 : 1;
+      const extra = isT ? '&grade=' + grade : '';
+      const a = mk('a', 'btn btn-primary btn-sm w-100 mb-2', t('quiz'));
+      a.href = '/quiz.html?topic=' + encodeURIComponent(x.topic) + extra;
+      const b = mk('a', 'btn btn-success btn-sm w-100', t('match'));
+      b.href = '/match.html?topic=' + encodeURIComponent(x.topic) + extra;
+      card.append(mk('div', 'topic-ico', ICON[x.topic] || '📘'),
+                  mk('h6', 'mb-1', tr('topic_' + x.topic, x.topic)),
+                  mk('div', 'stars', '⭐'.repeat(n) + '☆'.repeat(3 - n)), a, b);
+      col.append(card); wrap.append(col);
+    });
+    grid.append(wrap);
+  }
+  load();
+})();
+</script>
+</body>
+</html>

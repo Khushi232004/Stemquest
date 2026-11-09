@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Students - StemQuest</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="stylesheet" href="/vendor/bootstrap.min.css">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div id="nav"></div>
+<div class="container py-4" style="max-width:800px">
+  <h3 class="mb-3" data-i18n="navStudents">Students</h3>
+  <div id="msg"></div>
+  <div id="pills" class="pills"></div>
+  <input id="q" class="form-control mb-3" data-i18n-ph="search" placeholder="Search by name or code">
+  <div id="list" class="lbbox"></div>
+</div>
+<script src="/js/app.js"></script>
+<script>
+(async () => {
+  await loadLang(); renderNav(true);
+  const $ = id => document.getElementById(id);
+  let grade = '', term = '', all = [];
+
+  function drawPills() {
+    $('pills').innerHTML = '';
+    [['', t('allGrades')], ['6', t('grade6')], ['7', t('grade7')]].forEach(([v, label]) => {
+      const b = mk('button', 'pill' + (v === grade ? ' on' : ''), label);
+      b.onclick = () => { grade = v; load(); };
+      $('pills').append(b);
+    });
+  }
+
+  function draw() {
+    const list = $('list'); list.innerHTML = '';
+    const rows = all.filter(s => (s.name + ' ' + s.code).toLowerCase().includes(term));
+    if (!rows.length) { list.append(mk('div', 'lbrow text-muted', t('noStudents'))); return; }
+    rows.forEach(s => {
+      const risk = s.games > 0 && s.avg < 50;
+      const row = mk('div', 'lbrow');
+      row.style.cursor = 'pointer';
+      const nm = mk('div', 'nm');
+      nm.append(mk('div', '', (risk ? '⚠️ ' : '') + s.name),
+                mk('div', 'text-muted small', s.code + ' · ' + (s.grade ? t('grade' + s.grade) : '-')));
+      const right = mk('div', 'text-end');
+      right.append(mk('strong', '', s.xp + ' XP'), mk('div', 'text-muted small', s.avg + '%'));
+      row.append(nm, right);
+      row.onclick = () => location.href = '/student.html?id=' + s.id;
+      list.append(row);
+    });
+  }
+
+  async function load() {
+    drawPills();
+    const d = await getJSON('/api/teacher/students' + (grade ? '?grade=' + grade : ''), 't_students' + grade);
+    if (!d) { $('msg').className = 'alert alert-warning'; $('msg').textContent = t('teacherOnly'); return; }
+    all = d; draw();
+  }
+
+  $('q').oninput = () => { term = $('q').value.trim().toLowerCase(); draw(); };
+  load();
+})();
+</script>
+</body>
+</html>
